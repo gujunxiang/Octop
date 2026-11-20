@@ -119,6 +119,15 @@ export function ChatNavScopeEmpty({
   );
 }
 
+/** Embedded in a host app (see MainLayout): the host hides cloud collaboration. */
+function isEmbedded(): boolean {
+  try {
+    return sessionStorage.getItem("octop:embed") === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** Expert / team / cloud switch under the chat nav search box. */
 export default function ChatNavScopeTabs({
   value,
@@ -130,7 +139,9 @@ export default function ChatNavScopeTabs({
   const { t } = useTranslation();
   return (
     <div className={styles.sessionScopeTabs} role="tablist">
-      {CHAT_NAV_SCOPES.map((scope) => {
+      {CHAT_NAV_SCOPES.filter(
+        (scope) => scope !== "cloud" || !isEmbedded(),
+      ).map((scope) => {
         const meta = NAV_SCOPE_LABELS[scope];
         const selected = value === scope;
         return (

@@ -54,11 +54,30 @@ function ChatWithKey() {
   return <Chat />;
 }
 
+/**
+ * Embedded in a host app (COE Web): `?embed=1` hides Octop's own navigation.
+ * The flag is kept in sessionStorage so in-app navigation that drops the query stays embedded.
+ */
+const EMBED_KEY = "octop:embed";
+
+function readEmbedMode(search: string): boolean {
+  try {
+    if (new URLSearchParams(search).get("embed") === "1") {
+      sessionStorage.setItem(EMBED_KEY, "1");
+      return true;
+    }
+    return sessionStorage.getItem(EMBED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const currentPath = location.pathname;
+  const [isEmbedded] = useState(() => readEmbedMode(location.search));
   const selectedKey = resolveSelectedKey(currentPath);
   const isMobile = useIsMobile();
   const { layoutMode } = useLayoutMode();
@@ -274,7 +293,7 @@ export default function MainLayout() {
             }}
           >
             {/* Mobile overlay backdrop */}
-            {isMobile && !collapsed && (
+            {!isEmbedded && isMobile && !collapsed && (
               <div
                 onClick={toggleCollapsed}
                 style={{
@@ -286,6 +305,7 @@ export default function MainLayout() {
               />
             )}
 
+            {!isEmbedded && (
             <div
               style={{
                 position: "relative",
@@ -321,6 +341,7 @@ export default function MainLayout() {
                 />
               )}
             </div>
+            )}
 
             {isChatRoute && !isMinimalLayout && (
               <div
@@ -348,7 +369,8 @@ export default function MainLayout() {
                 position: "relative",
               }}
             >
-              {isMobile &&
+              {!isEmbedded &&
+                isMobile &&
                 !(
                   SELF_HEADER_PATHS.has(currentPath) ||
                   [...SELF_HEADER_PATHS].some((p) =>
