@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import cx from "classnames";
 import { Plus } from "lucide-react";
 import { CHAT_NAV_SCOPES, type ChatNavScope } from "../utils/chatNavScope";
+import { isEmbedded } from "../../../utils/embedMode";
 import styles from "../index.module.less";
 
 const NAV_SCOPE_LABELS: Record<
@@ -75,6 +76,8 @@ export function ChatNavCreateButton({
 }) {
   const { t } = useTranslation();
   const action = NAV_CREATE_BUTTON[scope];
+  // Embedded users only chat with experts the host admin set up.
+  if (isEmbedded()) return null;
   return (
     <button
       type="button"
@@ -108,24 +111,19 @@ export function ChatNavScopeEmpty({
           ? t(meta.hintKey)
           : t(meta.hintKey, meta.hintFallback)}
       </p>
-      <button
-        type="button"
-        className={styles.sessionEmptyAgentsLink}
-        onClick={onCreate}
-      >
-        {scope === "experts" ? t(action.key) : t(action.key, action.fallback)}
-      </button>
+      {isEmbedded() ? null : (
+        <button
+          type="button"
+          className={styles.sessionEmptyAgentsLink}
+          onClick={onCreate}
+        >
+          {scope === "experts"
+            ? t(action.key)
+            : t(action.key, action.fallback)}
+        </button>
+      )}
     </div>
   );
-}
-
-/** Embedded in a host app (see MainLayout): the host hides cloud collaboration. */
-function isEmbedded(): boolean {
-  try {
-    return sessionStorage.getItem("octop:embed") === "1";
-  } catch {
-    return false;
-  }
 }
 
 /** Expert / team / cloud switch under the chat nav search box. */

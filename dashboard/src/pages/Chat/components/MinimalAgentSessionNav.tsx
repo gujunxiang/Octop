@@ -45,6 +45,7 @@ import ChatNavScopeTabs, {
   ChatNavCreateButton,
   ChatNavScopeEmpty,
 } from "./ChatNavScopeTabs";
+import { isEmbedded } from "../../../utils/embedMode";
 import ExpertSortMenu from "./ExpertSortMenu";
 import {
   expertVisibleInNavSearch,
@@ -380,10 +381,14 @@ export default function MinimalAgentSessionNav({
   const [searchQuery, setSearchQuery] = useState("");
   const [editAgent, setEditAgent] = useState<OctopAgent | null>(null);
   const [showingHidden, setShowingHidden] = useState(false);
+  // Embedded hides the scope tabs, so the list stays on experts.
+  const [embedded] = useState(isEmbedded);
   const [navScope, setNavScope] = useState<ChatNavScope>(() =>
-    initialChatNavScope(
-      agents.find((agent) => agent.agent_id === activeAgentId),
-    ),
+    embedded
+      ? "experts"
+      : initialChatNavScope(
+          agents.find((agent) => agent.agent_id === activeAgentId),
+        ),
   );
   const { pinnedIds, isPinned, togglePin } = usePinnedExperts();
   const { mode: sortMode, setMode: setSortMode } = useExpertSort();
@@ -727,9 +732,11 @@ export default function MinimalAgentSessionNav({
           aria-label={t("chat.searchSessions", "搜索会话")}
         />
       </div>
-      <div className={styles.sessionScopeRow}>
-        <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
-      </div>
+      {embedded ? null : (
+        <div className={styles.sessionScopeRow}>
+          <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+        </div>
+      )}
       <div className={styles.sessionCreateRow}>
         <ChatNavCreateButton
           scope={navScope}

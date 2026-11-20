@@ -57,6 +57,7 @@ import ChatNavScopeTabs, {
   ChatNavCreateButton,
   ChatNavScopeEmpty,
 } from "./ChatNavScopeTabs";
+import { isEmbedded } from "../../../utils/embedMode";
 import { useChatNavDrawers } from "./ChatNavDrawers";
 import ExpertSortMenu from "./ExpertSortMenu";
 import AgentUnreadBadge from "./AgentUnreadBadge";
@@ -625,10 +626,14 @@ export default function SessionList({
   const [searchQuery, setSearchQuery] = useState("");
   const [showingHidden, setShowingHidden] = useState(false);
   const [editAgent, setEditAgent] = useState<OctopAgent | null>(null);
+  // Embedded hides the scope tabs, so the list stays on experts.
+  const [embedded] = useState(isEmbedded);
   const [navScope, setNavScope] = useState<ChatNavScope>(() =>
-    initialChatNavScope(
-      agents.find((agent) => agent.agent_id === activeAgentId),
-    ),
+    embedded
+      ? "experts"
+      : initialChatNavScope(
+          agents.find((agent) => agent.agent_id === activeAgentId),
+        ),
   );
   const { filterVisible, pickHidden, hide, unhide, canHide } =
     useHiddenSharedExperts();
@@ -880,9 +885,11 @@ export default function SessionList({
         </div>
       ) : null}
 
-      <div className={styles.sessionScopeRow}>
-        <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
-      </div>
+      {embedded ? null : (
+        <div className={styles.sessionScopeRow}>
+          <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+        </div>
+      )}
       <div className={styles.sessionCreateRow}>
         <ChatNavCreateButton
           scope={navScope}
