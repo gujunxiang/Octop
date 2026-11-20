@@ -717,33 +717,40 @@ export default function MinimalAgentSessionNav({
         agent={editAgent}
         onClose={() => setEditAgent(null)}
       />
-      <div className={styles.sessionSearchWrap}>
-        <Search
-          size={14}
-          className={styles.sessionSearchIcon}
-          strokeWidth={2}
-        />
-        <input
-          type="search"
-          className={styles.sessionSearchInput}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("chat.searchSessions", "搜索会话")}
-          aria-label={t("chat.searchSessions", "搜索会话")}
-        />
+      <div className={styles.sessionHeaderRow}>
+        <div className={styles.sessionSearchWrap}>
+          <Search
+            size={14}
+            className={styles.sessionSearchIcon}
+            strokeWidth={2}
+          />
+          <input
+            type="search"
+            className={styles.sessionSearchInput}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t("chat.searchSessions", "搜索会话")}
+            aria-label={t("chat.searchSessions", "搜索会话")}
+          />
+        </div>
+        {embedded ? (
+          <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
+        ) : null}
       </div>
       {embedded ? null : (
-        <div className={styles.sessionScopeRow}>
-          <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
-        </div>
+        <>
+          <div className={styles.sessionScopeRow}>
+            <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+          </div>
+          <div className={styles.sessionCreateRow}>
+            <ChatNavCreateButton
+              scope={navScope}
+              onCreate={() => navCreate.open(navScope)}
+            />
+            <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
+          </div>
+        </>
       )}
-      <div className={styles.sessionCreateRow}>
-        <ChatNavCreateButton
-          scope={navScope}
-          onCreate={() => navCreate.open(navScope)}
-        />
-        <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
-      </div>
       {navCreate.drawers}
       {visibleAgents.length === 0 &&
       (searching || loading || hiddenAgents.length === 0) ? (

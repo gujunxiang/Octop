@@ -882,21 +882,26 @@ export default function SessionList({
               aria-label={t("chat.searchSessions", "搜索会话")}
             />
           </div>
+          {embedded ? (
+            <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
+          ) : null}
         </div>
       ) : null}
 
       {embedded ? null : (
-        <div className={styles.sessionScopeRow}>
-          <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
-        </div>
+        <>
+          <div className={styles.sessionScopeRow}>
+            <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+          </div>
+          <div className={styles.sessionCreateRow}>
+            <ChatNavCreateButton
+              scope={navScope}
+              onCreate={() => navCreate.open(navScope)}
+            />
+            <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
+          </div>
+        </>
       )}
-      <div className={styles.sessionCreateRow}>
-        <ChatNavCreateButton
-          scope={navScope}
-          onCreate={() => navCreate.open(navScope)}
-        />
-        <ExpertSortMenu mode={sortMode} onChange={setSortMode} />
-      </div>
       {navCreate.drawers}
 
       <div className={styles.sessionItems}>

@@ -140,6 +140,16 @@
     margin: 0 4px 8px;
   }
 
+  .sessionHeaderRow {
+    margin: 0 4px 8px;
+
+    .expertSortBtn {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+    }
+  }
+
   .sessionScopeRow {
     margin: 0 4px 8px;
   }
@@ -384,6 +394,7 @@
 .sessionHeaderRow {
   display: flex;
   align-items: center;
+  gap: 6px;
   flex-shrink: 0;
   margin: 0 12px 10px 0;
 
@@ -391,6 +402,16 @@
     flex: 1;
     min-width: 0;
     margin: 0;
+  }
+
+  /* Embedded mode moves the sort button next to the search box. */
+  .expertSortBtn {
+    width: 36px;
+    height: 36px;
+    box-sizing: border-box;
+    border: 1px solid var(--fn-border-secondary, rgba(0, 0, 0, 0.06));
+    border-radius: 10px;
+    background: var(--fn-bg-elevated, #fff);
   }
 }
 
