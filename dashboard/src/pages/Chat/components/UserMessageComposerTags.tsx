@@ -11,6 +11,7 @@ import { incomingShareProps } from "../../../components/SharedResourceBadge";
 import { ConnectorLogo } from "../../Agent/Connectors/connectorDefs";
 import { knowledgeIconForName } from "../../KnowledgeBases/knowledgeIcons";
 import ContextChip, { type ContextChipVariant } from "./ContextChip";
+import { useEmbeddedComposerLock } from "../../../hooks/useEmbeddedComposerLock";
 import { skillChipIcon } from "../utils/skillChipIcon";
 import {
   modelRefLabel,
@@ -42,12 +43,32 @@ export function hasUserComposerTags(context?: UserComposerContext): boolean {
   );
 }
 
+/** Embedded Octop non-admins never see the expert's preset connectors, knowledge bases, or model. */
+export function useVisibleComposerContext(
+  context?: UserComposerContext,
+): UserComposerContext | undefined {
+  const locked = useEmbeddedComposerLock();
+  return useMemo(
+    () =>
+      locked && context
+        ? {
+            ...context,
+            connectors: undefined,
+            knowledgeBaseIds: undefined,
+            model: undefined,
+          }
+        : context,
+    [locked, context],
+  );
+}
+
 export default function UserMessageComposerTags({
-  context,
+  context: rawContext,
   lookups,
 }: UserMessageComposerTagsProps) {
   const { t } = useTranslation();
   const skillDisplayName = useSkillDisplayName();
+  const context = useVisibleComposerContext(rawContext);
 
   const tags = useMemo(() => {
     if (!context) return [];

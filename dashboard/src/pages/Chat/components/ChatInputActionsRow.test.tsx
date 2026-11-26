@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { OctopUser } from "../../../api/modules/auth";
 import type { ResolvedModel } from "../../../api/types";
+import { CurrentUserProvider } from "../../../hooks/useCurrentUser";
 import ChatInputActionsRow from "./ChatInputActionsRow";
 
 // `isSttAvailable()` runs at module load, so the browser APIs it probes must
@@ -532,5 +534,104 @@ describe("ChatInputActionsRow voice button", () => {
     const { mic } = renderRow({ voiceHoldToTalk: true, isStreaming: true });
 
     expect(mic).not.toBeDisabled();
+  });
+});
+
+describe("ChatInputActionsRow in Embedded Octop", () => {
+  const presetProps = {
+    ...baseProps,
+    availableConnectors: [
+      { mcp_server_name: "coe-web", label: "COE Web", kind: "custom" },
+    ],
+    selectedConnectors: ["coe-web"],
+    onConnectorsChange: vi.fn(),
+    availableKnowledgeBases: [
+      {
+        id: "coe",
+        owner_user_id: 1,
+        name: "COE",
+        description: "",
+        default_open: false,
+        shared: true,
+        icon_name: "book",
+        embedding_model: "",
+        embedding_dim: 0,
+        doc_count: 0,
+        max_documents: 1,
+        created_at: 0,
+        updated_at: 0,
+      },
+    ],
+    selectedKnowledgeBaseIds: ["coe"],
+    onKnowledgeBaseIdsChange: vi.fn(),
+  };
+
+  const renderAs = (
+    role: "user" | "admin",
+    props: Partial<typeof presetProps> = {},
+  ) =>
+    render(
+      <MemoryRouter>
+        <CurrentUserProvider
+          user={{ id: 7, username: "u", role } as OctopUser}
+          setUser={() => undefined}
+        >
+          <ChatInputActionsRow {...presetProps} {...props} />
+        </CurrentUserProvider>
+      </MemoryRouter>,
+    );
+
+  beforeEach(() => sessionStorage.setItem("octop:embed", "1"));
+  afterEach(() => sessionStorage.removeItem("octop:embed"));
+
+  it("leaves a regular user only upload on a wide toolbar", () => {
+    renderAs("user");
+
+    expect(screen.queryByTestId("composer-plus")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("快捷指令")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("chat.conversationMode.picker"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("connectors.chatPicker"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("chat.knowledgePicker"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Upload")).toBeInTheDocument();
+  });
+
+  it("leaves a regular user only upload and polish in the narrow plus menu", async () => {
+    renderAs("user", { isMobile: true });
+
+    const plus = screen.getByTestId("composer-plus");
+    expect(plus).not.toHaveTextContent(/\d/);
+    fireEvent.click(plus);
+
+    expect(await screen.findByText("chat.polish.tooltip")).toBeInTheDocument();
+    expect(screen.getByText("Upload")).toBeInTheDocument();
+    expect(screen.queryByText("Model")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("chat.conversationMode.picker"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("connectors.chatPicker")).not.toBeInTheDocument();
+    expect(screen.queryByText("chat.knowledgePicker")).not.toBeInTheDocument();
+    expect(screen.queryByText("快捷指令")).not.toBeInTheDocument();
+  });
+
+  it("keeps every control for an Octop admin", () => {
+    renderAs("admin");
+
+    expect(screen.getByTestId("composer-plus")).toHaveTextContent("2");
+    expect(screen.getByLabelText("快捷指令")).toBeInTheDocument();
+  });
+
+  it("keeps every control when Octop is opened directly", () => {
+    sessionStorage.removeItem("octop:embed");
+    renderAs("user");
+
+    expect(screen.getByTestId("composer-plus")).toHaveTextContent("2");
+    expect(screen.getByLabelText("快捷指令")).toBeInTheDocument();
   });
 });

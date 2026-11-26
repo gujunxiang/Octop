@@ -16,6 +16,7 @@
 | `42ffbc51` | 移除 PWA「新版本已就绪」更新提示（由部署流程统一控制版本） | `dashboard/src/App.tsx` |
 | `3ac9ac3e` | 嵌入模式下隐藏专家/团队 Tab 切换与创建专家入口，抽离判定工具 `isEmbedded()` | `dashboard/src/utils/embedMode.ts`（新增）<br/>`dashboard/src/pages/Chat/components/ChatNavScopeTabs.tsx`<br/>`dashboard/src/pages/Chat/components/MinimalAgentSessionNav.tsx`<br/>`dashboard/src/pages/Chat/components/SessionList.tsx` |
 | `34e8d1f3` | 嵌入模式下将专家排序按钮移至搜索框旁，优化紧凑布局 | `dashboard/src/pages/Chat/chatThemeOverrides.partial.less`<br/>`dashboard/src/pages/Chat/components/MinimalAgentSessionNav.tsx`<br/>`dashboard/src/pages/Chat/components/SessionList.tsx` |
+| （待提交） | 嵌入模式下普通用户只能对话：隐藏连接器/知识库/模型 chip、「+」菜单与快捷指令，固定使用专家预设（见 1.3） | `dashboard/src/hooks/useEmbeddedComposerLock.ts`（新增）<br/>`dashboard/src/pages/Chat/components/ChatInputActionsRow.tsx`<br/>`dashboard/src/pages/Chat/components/ChatInputPreviewBar.tsx`<br/>`dashboard/src/pages/Chat/components/UserMessageComposerTags.tsx`<br/>`dashboard/src/pages/Chat/components/MessageBubble.tsx`<br/>`dashboard/src/pages/Chat/hooks/useChatComposerResources.ts` |
 
 ### 1.2 嵌入模式判定机制
 
@@ -25,7 +26,18 @@
 - 后续在 iframe 内跳转路由（即使 URL 不再携带 `?embed=1`）时，通过 `isEmbedded()` 读取 `sessionStorage.getItem('octop:embed') === '1'`，持续保持嵌入模式；
 - 不带 `?embed=1` 直接独立打开 Octop 时，行为与上游完全一致，不影响管理员直接登录管理后台。
 
-### 1.3 跟进上游新版本
+### 1.3 嵌入模式下普通用户只能对话
+
+嵌入模式下，Octop 角色不是 `admin` 的用户（宿主经 SSO 开通的账号都是 `user`）只能对话，判定集中在 `useEmbeddedComposerLock()`：
+
+- 隐藏：输入框上方的连接器、知识库、模型 chip；已发送消息下的同类标签；宽屏下的「+」菜单、角标、平铺在工具栏上的各选择器按钮和 ⚡ 快捷指令；
+- 保留：📎 上传、输入框内的 `/` 技能菜单和 `@` 专家菜单；窄屏（紧凑布局）下「+」仍在，但只含「上传」和「润色」，不显示角标；
+- 专家预设的连接器、知识库和模型照常随每轮发送，且忽略此前保存的选择、会话里记住的模型和对话模式，始终使用专家默认值（模式未配置时为 `craft`，连接器只在该模式下生效）；`/` 命令切换模式也会被忽略；
+- `admin` 用户和独立打开 Octop 时不受影响。
+
+升级上游时请保留这些判定，并运行 `ChatInputActionsRow`、`embeddedComposerChips`、`useChatComposerResources` 三组测试确认。
+
+### 1.4 跟进上游新版本
 
 ```bash
 git fetch upstream --tags

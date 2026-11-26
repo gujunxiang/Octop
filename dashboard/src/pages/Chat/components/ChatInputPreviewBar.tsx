@@ -9,6 +9,7 @@ import { knowledgeIconForName } from "../../KnowledgeBases/knowledgeIcons";
 import { inferKindFromNameAndMime } from "../utils/chatAttachments";
 import { ChatMediaPlayer } from "./ChatMediaPlayer";
 import ContextChip from "./ContextChip";
+import { useEmbeddedComposerLock } from "../../../hooks/useEmbeddedComposerLock";
 import {
   modelNameLabel,
   type ModelPickerOption,
@@ -105,17 +106,20 @@ export default function ChatInputPreviewBar({
   availableModels,
   onModelChange,
 }: ChatInputPreviewBarProps) {
+  // Embedded Octop non-admins keep the expert's presets without seeing them.
+  const showPresetChips = !useEmbeddedComposerLock();
   // Show the chip whenever a model is explicitly selected, mirroring how
   // connectors behave — not only when it differs from the
   // agent default (that was the old "override" behavior).
   const selectedModelValue = (selectedModel || "").trim();
-  const showModelChip = selectedModelValue.length > 0 && !!onModelChange;
+  const showModelChip =
+    showPresetChips && selectedModelValue.length > 0 && !!onModelChange;
 
   const hasContent =
     attachments.length > 0 ||
     uploading ||
-    selectedConnectors.length > 0 ||
-    selectedKnowledgeBaseIds.length > 0 ||
+    (showPresetChips && selectedConnectors.length > 0) ||
+    (showPresetChips && selectedKnowledgeBaseIds.length > 0) ||
     showModelChip;
 
   if (!hasContent) return null;
@@ -223,7 +227,8 @@ export default function ChatInputPreviewBar({
           </div>
         </div>
       )}
-      {availableConnectors &&
+      {showPresetChips &&
+        availableConnectors &&
         onConnectorsChange &&
         selectedConnectors.map((name) => {
           const c = availableConnectors.find((x) => x.mcp_server_name === name);
@@ -240,7 +245,8 @@ export default function ChatInputPreviewBar({
             />
           );
         })}
-      {availableKnowledgeBases &&
+      {showPresetChips &&
+        availableKnowledgeBases &&
         onKnowledgeBaseIdsChange &&
         selectedKnowledgeBaseIds.map((id) => {
           const knowledgeBase = availableKnowledgeBases.find(

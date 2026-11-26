@@ -61,8 +61,11 @@ vi.mock("../../../api/modules/knowledgeBases", () => ({
     ]),
   },
 }));
+const { userState } = vi.hoisted(() => ({
+  userState: { user: { id: 7 } as { id: number; role?: string } },
+}));
 vi.mock("../../../hooks/useCurrentUser", () => ({
-  useCurrentUser: () => ({ id: 7 }),
+  useCurrentUser: () => userState.user,
 }));
 const { agentState } = vi.hoisted(() => ({
   agentState: {
@@ -88,6 +91,7 @@ import { providerApi } from "../../../api/modules/provider";
 import { octopThreadsApi } from "../../../api/modules/octopThreads";
 import type { ResolvedModel } from "../../../api/types";
 import { useChatComposerResources } from "./useChatComposerResources";
+import { saveConnectors, saveKnowledgeBaseIds } from "../utils/chatStorage";
 
 const model = (name: string): ResolvedModel => ({
   provider_id: 1,
@@ -112,6 +116,8 @@ const baseKnowledgeBases = [
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  sessionStorage.removeItem("octop:embed");
+  userState.user = { id: 7 };
   agentState.loading = false;
   agentState.agents = baseAgents.map((item) => ({ ...item }));
   vi.mocked(knowledgeBasesApi.list).mockResolvedValue(
@@ -704,5 +710,73 @@ describe("useChatComposerResources — disabled model recovery (#2316)", () => {
     await waitFor(() => expect(result.current.modelsReady).toBe(true));
     expect(result.current.selectedModel).toBe("prov/other");
     expect(octopThreadsApi.patch).not.toHaveBeenCalled();
+  });
+});
+
+describe("useChatComposerResources — Embedded Octop presets", () => {
+  const presetExpert = {
+    agent_id: "expertA",
+    default_model: "prov/expert",
+    mcp_servers: ["c1"],
+    knowledge_base_ids: ["k1"],
+  };
+
+  beforeEach(() => {
+    sessionStorage.setItem("octop:embed", "1");
+    userState.user = { id: 7, role: "user" };
+    agentState.agents = [{ ...presetExpert }];
+    // An earlier visit removed every preset on this expert.
+    saveConnectors("expertA", []);
+    saveKnowledgeBaseIds("expertA", []);
+  });
+
+  const renderExistingThread = () =>
+    renderHook(() =>
+      useChatComposerResources(
+        "expertA",
+        "thread-existing",
+        "prov/sticky",
+        null,
+        null,
+        "ask",
+      ),
+    );
+
+  it("gives a regular user the expert's presets on an old thread", async () => {
+    const { result } = renderExistingThread();
+
+    await waitFor(() => {
+      expect(result.current.selectedConnectors).toEqual(["c1"]);
+      expect(result.current.selectedKnowledgeBaseIds).toEqual(["k1"]);
+    });
+    expect(result.current.selectedModel).toBe("prov/expert");
+    expect(result.current.conversationMode).toBe("craft");
+  });
+
+  it("keeps a regular user on the expert's mode when a slash command asks to switch", async () => {
+    const { result } = renderExistingThread();
+    await waitFor(() =>
+      expect(result.current.conversationMode).toBe("craft"),
+    );
+
+    act(() => result.current.handleConversationModeChange("ask"));
+
+    expect(result.current.conversationMode).toBe("craft");
+    expect(octopThreadsApi.patch).not.toHaveBeenCalledWith(
+      "expertA",
+      "thread-existing",
+      { conversation_mode: "ask" },
+    );
+  });
+
+  it("keeps an Octop admin's own choices on an old thread", async () => {
+    userState.user = { id: 7, role: "admin" };
+    const { result } = renderExistingThread();
+
+    await waitFor(() => expect(result.current.chatConnectors.length).toBe(2));
+    expect(result.current.selectedConnectors).toEqual([]);
+    expect(result.current.selectedKnowledgeBaseIds).toEqual([]);
+    expect(result.current.selectedModel).toBe("prov/sticky");
+    expect(result.current.conversationMode).toBe("ask");
   });
 });

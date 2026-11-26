@@ -11,6 +11,7 @@ import {
 import type { ResolvedModel } from "../../../api/types";
 import { CONNECTORS_CHANGED_EVENT } from "../../Agent/Connectors/customMcpUtils";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
+import { useEmbeddedComposerLock } from "../../../hooks/useEmbeddedComposerLock";
 import { useAgent } from "../../../context/AgentContext";
 import { useAcpSessionModes } from "../../../hooks/useAcpSessionModes";
 import { isUnattendedSessionMode } from "../../../api/modules/acp";
@@ -77,6 +78,9 @@ export function useChatComposerResources(
 ) {
   const user = useCurrentUser();
   const currentUserId = user?.id ?? null;
+  // Embedded Octop non-admins cannot see or change presets, so earlier choices
+  // (saved selections, thread model and mode) must not override the expert's.
+  const composerLocked = useEmbeddedComposerLock();
   const { agents, loading: agentsLoading } = useAgent();
   const expert = agents.find((item) => item.agent_id === resolvedAgentId);
   const expertDefaultMode = parseConversationMode(
@@ -189,11 +193,16 @@ export function useChatComposerResources(
   // the expert's default model. Account preferred model is an auto-route
   // priority on the server and stays unselected here (Auto).
   useEffect(() => {
-    const local = activeThreadId
-      ? conversationOverrides[activeThreadId]
-      : undefined;
+    const local =
+      activeThreadId && !composerLocked
+        ? conversationOverrides[activeThreadId]
+        : undefined;
     setSelectedModel(
-      local ? local.model : stickyModel || expertDefaultModel || null,
+      composerLocked
+        ? expertDefaultModel
+        : local
+        ? local.model
+        : stickyModel || expertDefaultModel || null,
     );
   }, [
     resolvedAgentId,
@@ -201,6 +210,7 @@ export function useChatComposerResources(
     stickyModel,
     expertDefaultModel,
     conversationOverrides,
+    composerLocked,
   ]);
 
   useEffect(() => {
@@ -239,11 +249,17 @@ export function useChatComposerResources(
 
   useEffect(() => {
     setConversationMode(
-      isNewSession
+      isNewSession || composerLocked
         ? expertDefaultMode
         : parseConversationMode(stickyConversationMode),
     );
-  }, [isNewSession, stickyConversationMode, activeThreadId, expertDefaultMode]);
+  }, [
+    isNewSession,
+    stickyConversationMode,
+    activeThreadId,
+    expertDefaultMode,
+    composerLocked,
+  ]);
 
   useEffect(() => {
     setHitlPolicy(
@@ -310,7 +326,7 @@ export function useChatComposerResources(
           // once before the expert row exists; that partial result must
           // not block expert / default-open picks when they arrive.
           ignorePrev: !composerTouchedRef.current,
-          ignoreSaved: isNewSession,
+          ignoreSaved: isNewSession || composerLocked,
           preferPrev: composerTouchedRef.current,
         });
         return sameIds(prev, next) ? prev : next;
@@ -367,6 +383,7 @@ export function useChatComposerResources(
     resolvedAgentId,
     currentUserId,
     isNewSession,
+    composerLocked,
     expertMcpKey,
     teamHost,
     remoteBridge,
@@ -421,7 +438,7 @@ export function useChatComposerResources(
           defaults,
           allowed,
           ignorePrev: !composerTouchedRef.current,
-          ignoreSaved: isNewSession,
+          ignoreSaved: isNewSession || composerLocked,
           preferPrev: composerTouchedRef.current,
         });
         const next =
@@ -473,6 +490,7 @@ export function useChatComposerResources(
     resolvedAgentId,
     currentUserId,
     isNewSession,
+    composerLocked,
     expertKbKey,
     teamHost,
     remoteBridge,
@@ -668,7 +686,9 @@ export function useChatComposerResources(
   );
 
   const handleConversationModeChange = useCallback(
-    (mode: ConversationMode, options?: { persist?: boolean }) => {
+    (requested: ConversationMode, options?: { persist?: boolean }) => {
+      // Slash commands can still ask; a locked composer stays on the expert's mode.
+      const mode = composerLocked ? expertDefaultMode : requested;
       setConversationMode(mode);
       if (activeThreadId) {
         syncSessionConversationMode(
@@ -689,7 +709,13 @@ export function useChatComposerResources(
         });
       }
     },
-    [activeThreadId, persistThreadSettings, resolvedAgentId],
+    [
+      activeThreadId,
+      persistThreadSettings,
+      resolvedAgentId,
+      composerLocked,
+      expertDefaultMode,
+    ],
   );
 
   const handleHitlPolicyChange = useCallback(

@@ -20,6 +20,7 @@ import cx from "classnames";
 import type { ChatAttachment, ChatMessage } from "../hooks/useChat";
 import UserMessageComposerTags, {
   hasUserComposerTags,
+  useVisibleComposerContext,
   type ComposerTagLookups,
 } from "./UserMessageComposerTags";
 import { deriveMessageContent } from "../utils/messageContent";
@@ -598,6 +599,9 @@ function MessageBubble({
   const navigate = useNavigate();
   const serverTimezone = useServerTimezone();
   const user = useCurrentUser();
+  const visibleComposerContext = useVisibleComposerContext(
+    message.composerContext,
+  );
   const isOwnMessage =
     message.author == null ||
     (user != null && message.author.userId === user.id);
@@ -745,7 +749,7 @@ function MessageBubble({
 
   const isUser = message.role === "user";
   const showUserComposerTags =
-    isUser && !isEditing && hasUserComposerTags(message.composerContext);
+    isUser && !isEditing && hasUserComposerTags(visibleComposerContext);
   const isStreaming = message.status === "streaming";
   const hasToolData = !!message.toolData;
   const isError =

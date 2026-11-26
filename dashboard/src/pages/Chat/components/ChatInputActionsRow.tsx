@@ -66,6 +66,7 @@ import type { SlashMenuItem } from "../hooks/useSlashMentionInput";
 import type { HitlSessionPolicy } from "../utils/hitlSessionPolicy";
 import { SHORTCUT_ICON_TONE_CLASS } from "../utils/slashShortcutStyles";
 import { isSttAvailable } from "../../../hooks/useVoiceInput";
+import { useEmbeddedComposerLock } from "../../../hooks/useEmbeddedComposerLock";
 import { parseSkillSlugsInText } from "../utils/skillSlash";
 import { useSkillDisplayName } from "../../Agent/Skills/skillDisplayNames";
 import {
@@ -368,27 +369,31 @@ export default function ChatInputActionsRow({
     return () => observer.disconnect();
   }, [isMobile]);
 
+  // Embedded Octop non-admins keep the expert's presets but get no pickers.
+  const composerLocked = useEmbeddedComposerLock();
   const showModelPicker =
+    !composerLocked &&
     !managed &&
     Boolean(availableModels && availableModels.length > 0 && onModelChange);
   const allowWriteTools = conversationMode === "craft";
+  const showWriteToolPickers = allowWriteTools && !composerLocked;
   const showConnectorPicker = Boolean(
-    allowWriteTools && availableConnectors && onConnectorsChange,
+    showWriteToolPickers && availableConnectors && onConnectorsChange,
   );
   const showKnowledgePicker = Boolean(
-    availableKnowledgeBases && onKnowledgeBaseIdsChange,
+    !composerLocked && availableKnowledgeBases && onKnowledgeBaseIdsChange,
   );
   const showSkillPicker = Boolean(
-    allowWriteTools && availableSkills && onInsertSkillCommand,
+    showWriteToolPickers && availableSkills && onInsertSkillCommand,
   );
   const showExpertPicker = Boolean(
-    allowWriteTools &&
+    showWriteToolPickers &&
       availableExperts &&
       onInsertExpertMention &&
       availableExperts.length > 0,
   );
   const showSubagentPicker = Boolean(
-    allowWriteTools &&
+    showWriteToolPickers &&
       availableSubagents &&
       onInsertSubagentMention &&
       availableSubagents.length > 0,
@@ -411,7 +416,9 @@ export default function ChatInputActionsRow({
   const showManagedModes =
     managed && (sessionModes?.length ?? 0) > 0 && Boolean(onSessionModeChange);
   const showModePicker =
-    showManagedModes || (!managed && Boolean(onConversationModeChange));
+    !composerLocked &&
+    (showManagedModes || (!managed && Boolean(onConversationModeChange)));
+  const showShortcuts = !managed && !composerLocked;
   const activeSessionMode = sessionModes?.find(
     (mode) => mode.id === sessionMode,
   );
@@ -434,12 +441,13 @@ export default function ChatInputActionsRow({
   const showOverflowMenu =
     useCompactControls || (!flattenOverflow && overflowKeys.length > 0);
 
-  const overflowBadgeCount =
-    selectedConnectors.length +
-    selectedKnowledgeBaseIds.length +
-    activeSkillSlugs.length +
-    mentionedExperts.length +
-    mentionedSubagents.length;
+  const overflowBadgeCount = composerLocked
+    ? 0
+    : selectedConnectors.length +
+      selectedKnowledgeBaseIds.length +
+      activeSkillSlugs.length +
+      mentionedExperts.length +
+      mentionedSubagents.length;
 
   const closeCompactPicker = () => {
     setCompactPicker(null);
@@ -946,7 +954,7 @@ export default function ChatInputActionsRow({
           </span>
         </button>
       )}
-      {useCompactControls && !managed && (
+      {useCompactControls && showShortcuts && (
         <button
           type="button"
           className={cx(
@@ -1329,7 +1337,7 @@ export default function ChatInputActionsRow({
             disabledHint={settingsLockedHint}
           />
         ) : null}
-        {!useCompactControls && !managed && (
+        {!useCompactControls && showShortcuts && (
           <Popover
             trigger="click"
             placement="topLeft"
